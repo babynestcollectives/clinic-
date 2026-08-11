@@ -148,7 +148,7 @@ def get_all_cases() -> list:
     return search_cases()
 
 # ── STATISTICS ───────────────────────────────────────────────────────────────
-def _tokenize_and_count(values: list, limit: int = 20) -> list:
+def _tokenize_and_count(values: list, limit: int = 20, key_name: str = "procedure") -> list:
     counts = Counter()
     canonical = {}
     for val in values:
@@ -161,7 +161,7 @@ def _tokenize_and_count(values: list, limit: int = 20) -> list:
             if key not in canonical:
                 canonical[key] = token[0].upper() + token[1:]
     sorted_items = sorted(counts.items(), key=lambda x: x[1], reverse=True)[:limit]
-    return [{"procedure" if limit==20 else "diagnosis": canonical[k], "n": v} for k, v in sorted_items] # Hacky but works for this usage
+    return [{key_name: canonical[k], "n": v} for k, v in sorted_items]
 
 def stats_summary() -> dict:
     cases = get_all_cases()
@@ -193,8 +193,8 @@ def stats_summary() -> dict:
         "complication_rate": round(complications / total * 100, 1) if total else 0,
         "by_hospital": [{"hospital_code": k, "hospital_name": hosp_map.get(k, k), "n": v} for k, v in by_hosp.most_common()],
         "by_specialty": [{"specialty": k, "n": v} for k, v in by_spec.most_common()],
-        "by_procedure": _tokenize_and_count(procs),
-        "by_diagnosis": _tokenize_and_count(diags),
+        "by_procedure": _tokenize_and_count(procs, key_name="procedure"),
+        "by_diagnosis": _tokenize_and_count(diags, key_name="diagnosis"),
         "by_year": [{"yr": k, "n": v} for k, v in by_year.most_common()],
         "by_month": [{"mo": k, "n": v} for k, v in by_month.most_common()],
         "by_side": [{"side": k, "n": v} for k, v in by_side.most_common()],
