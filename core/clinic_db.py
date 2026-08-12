@@ -111,6 +111,13 @@ def delete_procedure_log(proc_id):
     supabase = get_supabase()
     supabase.table('procedures_log').delete().eq('id', proc_id).execute()
 
+def update_procedure_log(proc_id, data):
+    supabase = get_supabase()
+    fields = ["procedure_type", "body_part", "laterality", "medication_used",
+              "lot_number", "volume_dose", "consent_obtained", "notes"]
+    payload = {f: data.get(f) for f in fields if data.get(f) is not None}
+    supabase.table('procedures_log').update(payload).eq('id', proc_id).execute()
+
 def get_distinct_procedure_types():
     supabase = get_supabase()
     response = supabase.table('procedures_log').select('procedure_type').neq('procedure_type', 'Other').execute()

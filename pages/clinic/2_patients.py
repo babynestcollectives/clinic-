@@ -2,7 +2,8 @@ import streamlit as st
 import pandas as pd
 from core.clinic_db import (get_all_patients, get_clinic_patients, get_patient, save_patient, delete_patient,
                 set_clinic_patient, get_visits, get_visit, save_visit, delete_visit,
-                delete_surgery, get_patient_invoices, get_procedures_log, get_surgeries, get_followups, add_followup)
+                delete_surgery, get_patient_invoices, get_procedures_log, update_procedure_log,
+                get_surgeries, get_followups, add_followup)
 from core.surgical_db import get_patient_surgical_cases
 from core.utils import (calc_age, SPORTS_LEVELS, SMOKING_STATUS, LATERALITY_OPTIONS,
                     REHAB_PHASES, role_can, fmt_currency)
@@ -363,11 +364,48 @@ def render_patient_detail():
             st.info("No procedures logged.")
         else:
             for p in procs:
+                consent_icon = "✅" if p.get('consent_obtained') else "❌"
                 with st.expander(f"💉 {p['procedure_date']} - {p['procedure_type']}"):
-                    st.write(f"**Body Part:** {p.get('body_part', '—')} ({p.get('laterality', '—')})")
-                    st.write(f"**Medication:** {p.get('medication_used', '—')} (Lot: {p.get('lot_number', '—')})")
-                    st.write(f"**Volume/Dose:** {p.get('volume_dose', '—')}")
-                    st.write(f"**Notes:** {p.get('notes', '—')}")
+                    # Display current data
+                    dc1, dc2 = st.columns(2)
+                    dc1.write(f"**Body Part:** {p.get('body_part') or '—'}")
+                    dc2.write(f"**Laterality:** {p.get('laterality') or '—'}")
+                    dc1.write(f"**Medication:** {p.get('medication_used') or '—'}")
+                    dc2.write(f"**Lot Number:** {p.get('lot_number') or '—'}")
+                    dc1.write(f"**Volume/Dose:** {p.get('volume_dose') or '—'}")
+                    dc2.write(f"**Consent:** {consent_icon}")
+                    st.write(f"**Notes:** {p.get('notes') or '—'}")
+                    
+                    st.markdown("---")
+                    
+                    # Edit form
+                    with st.form(f"edit_proc_{p['id']}"):
+                        st.markdown("##### ✏️ Edit Procedure Details")
+                        ec1, ec2 = st.columns(2)
+                        body_part = ec1.text_input("Body Part", value=p.get('body_part') or '', key=f"bp_{p['id']}")
+                        laterality = ec2.selectbox("Laterality", ["", "Right", "Left", "Bilateral"],
+                            index=["", "Right", "Left", "Bilateral"].index(p.get('laterality', '')) if p.get('laterality', '') in ["", "Right", "Left", "Bilateral"] else 0,
+                            key=f"lat_{p['id']}")
+                        
+                        ec3, ec4 = st.columns(2)
+                        medication = ec3.text_input("Medication Used", value=p.get('medication_used') or '', key=f"med_{p['id']}")
+                        lot_number = ec4.text_input("Lot Number", value=p.get('lot_number') or '', key=f"lot_{p['id']}")
+                        
+                        ec5, ec6 = st.columns(2)
+                        volume_dose = ec5.text_input("Volume / Dose", value=p.get('volume_dose') or '', key=f"vol_{p['id']}")
+                        consent = ec6.checkbox("Consent Obtained", value=bool(p.get('consent_obtained')), key=f"con_{p['id']}")
+                        
+                        notes = st.text_area("Notes", value=p.get('notes') or '', key=f"pn_{p['id']}", height=80)
+                        
+                        if st.form_submit_button("💾 Save Changes", type="primary"):
+                            update_procedure_log(p['id'], {
+                                "body_part": body_part, "laterality": laterality,
+                                "medication_used": medication, "lot_number": lot_number,
+                                "volume_dose": volume_dose, "consent_obtained": 1 if consent else 0,
+                                "notes": notes
+                            })
+                            st.success("Procedure updated!")
+                            st.rerun()
         
     # ── Surgeries ──
     with tab_surgeries:
