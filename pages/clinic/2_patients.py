@@ -1,7 +1,7 @@
 import streamlit as st
 import pandas as pd
-from core.clinic_db import (get_all_patients, get_patient, save_patient, delete_patient,
-                get_visits, get_visit, save_visit, delete_visit,
+from core.clinic_db import (get_all_patients, get_clinic_patients, get_patient, save_patient, delete_patient,
+                set_clinic_patient, get_visits, get_visit, save_visit, delete_visit,
                 delete_surgery, get_patient_invoices, get_procedures_log, get_surgeries, get_followups, add_followup)
 from core.surgical_db import get_patient_surgical_cases
 from core.utils import (calc_age, SPORTS_LEVELS, SMOKING_STATUS, LATERALITY_OPTIONS,
@@ -33,16 +33,22 @@ def render():
 def render_patients_list():
     st.markdown("# 👥 Patients")
 
-    col_s, col_btn = st.columns([5, 1])
+    col_s, col_filter, col_btn = st.columns([4, 1.5, 1])
     with col_s:
         search = st.text_input("", placeholder="🔍  Search by name, phone or insurance...", label_visibility="collapsed")
+    with col_filter:
+        show_filter = st.selectbox("Show", ["Clinic Patients", "All Patients"], label_visibility="collapsed")
     with col_btn:
         if role_can(st.session_state.role, "patients"):
             if st.button("➕ New Patient", type="primary", use_container_width=True):
                 st.session_state.page = "new_patient"
                 st.rerun()
 
-    patients = get_all_patients(search)
+    if show_filter == "Clinic Patients":
+        patients = get_clinic_patients(search)
+    else:
+        patients = get_all_patients(search)
+
     if not patients:
         st.info("No patients found. Click '+ New Patient' to create the first record.")
     else:
@@ -169,15 +175,29 @@ def render_patient_detail():
     else:
         info_parts.append("Cash")
 
-    hc1, hc2, hc3 = st.columns([5, 1, 1])
+    is_clinic = pt.get('is_clinic_patient', True)
+    
+    hc1, hc2, hc3, hc4 = st.columns([4, 1.5, 1, 1])
     with hc1:
         st.markdown(f"# {pt['name']}")
-        st.markdown(f"<span style='color:#666;font-size:13px'>{' · '.join(info_parts)}</span>", unsafe_allow_html=True)
+        label = "🏥 Clinic Patient" if is_clinic else "📋 Logbook Only"
+        st.markdown(f"<span style='color:#666;font-size:13px'>{' · '.join(info_parts)}  ·  {label}</span>", unsafe_allow_html=True)
     with hc2:
+        if not is_clinic:
+            if st.button("✅ Add to Clinic", use_container_width=True, type="primary"):
+                set_clinic_patient(pid, True)
+                st.success("Patient added to clinic!")
+                st.rerun()
+        else:
+            if st.button("📋 Move to Logbook Only", use_container_width=True):
+                set_clinic_patient(pid, False)
+                st.info("Patient moved to logbook only.")
+                st.rerun()
+    with hc3:
         if st.button("← Back", use_container_width=True):
             st.session_state.page = "patients"
             st.rerun()
-    with hc3:
+    with hc4:
         if role_can(st.session_state.role, "patients") and st.button("🗑 Delete", use_container_width=True):
             st.session_state.page = "confirm_delete_patient"
             st.rerun()

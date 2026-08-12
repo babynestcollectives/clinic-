@@ -2,7 +2,7 @@ import streamlit as st
 import pandas as pd
 import plotly.express as px
 from core.clinic_db import (
-    get_all_patients, get_all_visits, get_all_surgeries, get_all_procedures_log,
+    get_all_patients, get_clinic_patients, get_all_visits, get_all_surgeries, get_all_procedures_log,
     get_all_invoices, get_all_payments, get_all_expenses
 )
 from core.utils import fmt_currency
@@ -10,14 +10,17 @@ from core.utils import fmt_currency
 def render():
     st.markdown("# 📊 Analytics & Reporting")
     
-    # Fetch all data once for analytics
-    patients = get_all_patients()
+    # Use clinic-only patients for statistics (excludes logbook-only patients)
+    patients = get_clinic_patients()
     visits = get_all_visits()
     surgeries = get_all_surgeries()
     procedures = get_all_procedures_log()
     invoices = get_all_invoices()
     payments = get_all_payments()
     expenses = get_all_expenses()
+    
+    # Keep all patients for export only
+    all_patients = get_all_patients()
     
     # ── Overview Metrics ──
     total_pts = len(patients)
@@ -255,7 +258,7 @@ def render():
     # ── Data Export ──
     st.markdown("### Data Export")
     
-    df_pts_export = pd.DataFrame(patients) if patients else pd.DataFrame()
+    df_pts_export = pd.DataFrame(all_patients) if all_patients else pd.DataFrame()
     df_vis_export = pd.DataFrame(visits) if visits else pd.DataFrame()
     df_surg_export = pd.DataFrame(surgeries) if surgeries else pd.DataFrame()
     df_exp_export = pd.DataFrame(expenses) if expenses else pd.DataFrame()

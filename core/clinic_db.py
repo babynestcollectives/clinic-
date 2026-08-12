@@ -8,12 +8,23 @@ from datetime import date, timedelta
 # ----------------- Patients -----------------
 
 def get_all_patients(search=""):
+    """Returns ALL patients (clinic + logbook) for the combined patient list."""
     supabase = get_supabase()
     if search:
         q = f"%{search}%"
         response = supabase.table('patients').select('*').or_(f"name.ilike.{q},phone.ilike.{q},insurance.ilike.{q}").order('name').execute()
     else:
         response = supabase.table('patients').select('*').order('name').execute()
+    return response.data
+
+def get_clinic_patients(search=""):
+    """Returns only clinic patients (is_clinic_patient=True) for statistics."""
+    supabase = get_supabase()
+    if search:
+        q = f"%{search}%"
+        response = supabase.table('patients').select('*').eq('is_clinic_patient', True).or_(f"name.ilike.{q},phone.ilike.{q},insurance.ilike.{q}").order('name').execute()
+    else:
+        response = supabase.table('patients').select('*').eq('is_clinic_patient', True).order('name').execute()
     return response.data
 
 def get_patient(pid):
@@ -43,6 +54,11 @@ def save_patient(data, pid=None):
 def delete_patient(pid):
     supabase = get_supabase()
     supabase.table('patients').delete().eq('id', pid).execute()
+
+def set_clinic_patient(pid, is_clinic=True):
+    """Toggle whether a patient is a clinic patient or logbook-only."""
+    supabase = get_supabase()
+    supabase.table('patients').update({'is_clinic_patient': is_clinic}).eq('id', pid).execute()
 
 # ----------------- Visits -----------------
 
@@ -413,7 +429,8 @@ def get_low_stock_items():
 def get_dashboard_stats():
     supabase = get_supabase()
     
-    pt_resp = supabase.table('patients').select('id', count='exact').execute()
+    # Count only clinic patients for dashboard stats
+    pt_resp = supabase.table('patients').select('id', count='exact').eq('is_clinic_patient', True).execute()
     total_patients = pt_resp.count if hasattr(pt_resp, 'count') and pt_resp.count is not None else 0
 
     v_resp = supabase.table('visits').select('id', count='exact').execute()
